@@ -1,29 +1,26 @@
-
+// On importe le module "multer" qui permet de gérer les fichiers envoyés depuis un formulaire HTML
 import multer from 'multer';
 
-// media types
+// On définit un objet "MIME_TYPES" qui contient des correspondances entre les types MIME et les extensions de fichier
 const MIME_TYPES = {
   'image/jpg': 'jpg',
   'image/jpeg': 'jpg',
   'image/png': 'png'
 };
 
-// Multer configuration
-// the multer.diskStorage function take an object with two elements: the destination and the file name, which are generated via functions
+// On crée une configuration de stockage pour Multer
 const storage = multer.diskStorage({
+  // On définit le dossier de destination où les fichiers seront stockés
   destination: (req, file, callback) => {
-    // null means that there is no errors
-    // 'images' is the name of the destination directory
     callback(null, 'images');
   },
+  // On définit le nom du fichier en combinant son nom d'origine, la date actuelle et son extension
   filename: (req, file, callback) => {
-    // assign the file name to a const, avoid whitespaces with split() and join()
-    const name = file.originalname.split(' ').join('_');
-    // define the file extension
-    const extension = MIME_TYPES[file.mimetype];
-    // return the final name of the file, Date.now is added to make the name unique
-    callback(null, name + Date.now() + '.' + extension);
+    const name = file.originalname.split(' ').join('_'); // On remplace les espaces par des underscores dans le nom du fichier
+    const extension = MIME_TYPES[file.mimetype]; // On récupère l'extension de fichier correspondant au type MIME
+    callback(null, name + Date.now() + '.' + extension); // On appelle la fonction de rappel avec le nom complet du fichier
   }
 });
 
-export default multer({storage: storage}).single('image');
+// On exporte une instance de Multer configurée avec la configuration de stockage définie précédemment, en spécifiant que le formulaire HTML envoie un fichier appelé "image"
+export default multer({ storage: storage }).single('image');

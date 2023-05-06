@@ -1,101 +1,114 @@
-// user model
+// Importe le modèle utilisateur depuis le fichier auth.js
 import user from '../models/auth.js';
-// data encryption package
+
+// Importe le module bcrypt pour le hachage des mots de passe
 import bcrypt from 'bcrypt';
-// 'results' function from the express-validator package
+
+// Importe la fonction validationResult du module express-validator pour la validation des entrées utilisateur
 import { validationResult } from 'express-validator';
-// token generation package
+
+// Importe le module jsonwebtoken pour la gestion des jetons d'authentification
 import jwt from 'jsonwebtoken';
-// env variables package
+
+// Importe le module dotenv pour la gestion des variables d'environnement
 import dotenv from 'dotenv'
 
-// dotenv package config
+// Charge les variables d'environnement depuis le fichier .env
 dotenv.config();
 
-// functions added to the auth routers + auth function added to the sauce routers
-
-// create an account
+// Fonction pour la création d'un nouvel utilisateur
 export function signupPost(req, res) {
+
+    // Valide les entrées utilisateur en utilisant la fonction validationResult d'express-validator
     const errors = validationResult(req);
 
-    // check if all the conditions from '../middlewares/authDataValidation.js' are respected
+    // Si des erreurs sont détectées, renvoie une réponse avec un code d'erreur 400 et une liste des erreurs détectées
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() })
-    // if yes : 
-    } else {
-        // take the password given and encrypt it 10 times
+    }
+
+    // Si les entrées sont valides, hache le mot de passe fourni par l'utilisateur à l'aide de bcrypt, crée un nouvel utilisateur avec l'adresse e-mail et le mot de passe haché, puis le sauvegarde dans la base de données
+    else {
         bcrypt.hash(req.body.password, 10)
             .then(hash => {
-                // then, create a new user model with the email requested and the password generated from the password request encryption
                 const newUser = new user({
                     email: req.body.email,
                     password: hash
                 });
-                // save the user in the database
                 return newUser.save()
-                    .then(() => res.status(201).json({message: 'Le compte a bien été créé'}))
+                    .then(() => res.status(201).json({ message: 'Le compte a bien été créé' }))
                     .catch(error => res.status(400).json({ error }))
-                ;
+                    ;
             })
             .catch(error => res.status(500).json({ error }));
-
     }
-
-
 };
 
-// login
-export function loginPost(req, res){
+// Fonction pour l'authentification d'un utilisateur existant
+export function loginPost(req, res) {
 
-    // find in the database the user who matches the email requested
-    return user.findOne({email: req.body.email})
+    // Cherche un utilisateur avec l'adresse e-mail fournie dans la base de données
+    return user.findOne({ email: req.body.email })
+
+        // Si aucun utilisateur n'est trouvé, renvoie une réponse avec un code d'erreur 401 (non autorisé)
         .then(user => {
             if (!user) {
                 return res.status(401).json({ error: 'Connexion impossible' })
-            } 
-            // then compare the password requested with the password of the account in the database
+            }
+
+            // Si l'utilisateur est trouvé, compare le mot de passe fourni avec le mot de passe stocké (haché) à l'aide de bcrypt
             return bcrypt.compare(req.body.password, user.password)
                 .then(valid => {
-                    // if the passwords dont match, return an error message
+
+                    // Si les mots de passe ne correspondent pas, renvoie une réponse avec un code d'erreur 401 (non autorisé)
                     if (!valid) {
                         return res.status(401).json({ error: 'Connexion impossible' })
                     }
-                    // else, return the user id + his token
+
+                    // Si les mots de passe correspondent, crée un jeton d'authentification à l'aide de jsonwebtoken et renvoie une réponse avec le code 200 (OK), l'ID de l'utilisateur et le jeton d'authentification
                     return res.status(200).json({
                         userId: user._id,
                         token: jwt.sign(
-                            {userId: user._id},
+                            { userId: user._id },
                             process.env.JWT_SECRET,
-                            {expiresIn: '24h'}
+                            { expiresIn: '24h' }
                         )
                     });
                 })
+
+                // Si une erreur se produit, renvoie une réponse avec un code d'erreur 500 (erreur interne du serveur)
                 .catch(error => res.status(500).json({ error }))
-            ;
+                ;
         })
+
+        // Si une erreur est survenue lors de la recherche de l'utilisateur, retourner une réponse avec l'erreur en json
         .catch(error => res.status(500).json({ error }))
-    ;
+        ;
 
 }
 
-// check if the user is authentified (used on the sauce routers)
-export function auth(req, res, next){
+// Vérifie si l'utilisateur est authentifié
+export function auth(req, res, next) {
     try {
-        // take the authorization token (and remove the 'Bearer ')
+        // On récupère le token d'authentification depuis les headers de la requête
         const token = req.headers.authorization.split(' ')[1];
-        // verify if the token matches the env token
+        // On décode le token en utilisant la clé secrète JWT_SECRET
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        // On récupère l'id de l'utilisateur depuis le token décodé
         const userId = decodedToken.userId;
+        // On ajoute l'identifiant de l'utilisateur à la requête
         req.auth = { userId };
-        // if not: throw an arror message
+
+        // On vérifie que l'id de l'utilisateur dans le corps de la requête correspond bien à celui dans le token décodé
         if (req.body.userId && req.body.userId !== userId) {
+            // Si les ids ne correspondent pas, on lance une exception avec le message 'user id non valable'
             throw 'user id non valable';
-        // else: continue the execution
         } else {
+            // Sinon, on passe à la prochaine fonction middleware
             next();
         }
-    } catch(error) {
+    } catch (error) {
+        // Si une erreur est survenue pendant l'exécution du code, on renvoie une réponse avec un code d'erreur 401 (non autorisé) et un message d'erreur
         res.status(401).json({ error: 'Requête non authentifiée' });
     }
-
 }

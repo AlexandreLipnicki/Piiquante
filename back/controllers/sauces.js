@@ -1,63 +1,48 @@
-// sauces model
+// Import des modules et des modèles nécessaires
 import sauce from '../models/sauce.js';
-// Node.js 'file system' package
 import fs from 'fs';
-
 import path from 'path';
 
-
-// functions added to the sauce routers
-
-
-// get all sauces
+// Récupère toutes les sauces
 export function getAllSauces(req, res) {
-
     return sauce.find()
-        .then(sauces => {res.status(200).json( sauces )})
-        .catch(error => res.status(400).json({ error }))
-    ;
-
+        .then(sauces => { res.status(200).json(sauces) })
+        .catch(error => res.status(400).json({ error }));
 };
 
-// get a specific sauce
+// Récupère une sauce spécifique en fonction de l'ID fourni
 export function getSauce(req, res) {
-    
-    return sauce.findOne({_id: req.params.id})
+    return sauce.findOne({ _id: req.params.id })
         .then(specSauce => res.status(200).json(specSauce))
-        .catch(error => res.status(404).json({ error }))
-    ;
+        .catch(error => res.status(404).json({ error }));
 };
 
-// post a sauce
+// Crée une nouvelle sauce
 export function postSauce(req, res) {
-    
-    // parse the request
+    // Vérifie que toutes les informations nécessaires ont été fournies et qu'elles sont valides
     const sauceObject = JSON.parse(req.body.sauce);
-
-    // check conditions
     if (!sauceObject.name || sauceObject.name.length < 3 || sauceObject.name.length > 30) {
-        throw 'Le nom doit comporter entre 3 et 20 caractères'
-    } else if (!sauceObject.manufacturer ||sauceObject.manufacturer.length < 3 || sauceObject.manufacturer.length > 30) {
-        throw 'Le nom du manufacturer doit comporter entre 3 et 20 cartactères'
+        throw 'Le nom doit comporter entre 3 et 20 caractères';
+    } else if (!sauceObject.manufacturer || sauceObject.manufacturer.length < 3 || sauceObject.manufacturer.length > 30) {
+        throw 'Le nom du manufacturer doit comporter entre 3 et 20 cartactères';
     } else if (sauceObject.description.length > 300) {
-        throw 'La description est trop longue'
-    } else if (!sauceObject.mainPepper ||sauceObject.mainPepper.length < 3 || sauceObject.mainPepper.length > 20) {
-        throw 'Le piment principal doit comporter entre 3 et 20 caractères'
+        throw 'La description est trop longue';
+    } else if (!sauceObject.mainPepper || sauceObject.mainPepper.length < 3 || sauceObject.mainPepper.length > 20) {
+        throw 'Le piment principal doit comporter entre 3 et 20 caractères';
     } else if (!sauceObject.heat) {
-        throw 'Mauvais format d\'intensité '
+        throw 'Mauvais format d\'intensité ';
     }
 
-    // Check the file extension
+    // Vérifie que le fichier envoyé est au format image
     if (req.file) {
         const fileExtension = path.extname(req.file.filename);
         if (!['.jpg', '.jpeg', '.png'].includes(fileExtension.toLowerCase())) {
             throw 'Le fichier doit être au format jpg, jpeg ou png';
         }
     }
-    
-    try {
 
-        // define the const 'newSauce' as a new 'sauce' model with the parsed data recieved
+    try {
+        // Crée une nouvelle sauce avec les informations fournies
         const newSauce = new sauce({
             ...sauceObject,
             imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
@@ -65,148 +50,150 @@ export function postSauce(req, res) {
             dislikes: 0,
             usersLiked: [],
             usersDisliked: []
-        })
-    
-        // save the sauce to the database
+        });
+
+        // Enregistre la nouvelle sauce dans la base de données
         return newSauce.save()
-            .then(() => res.status(201).json({message: 'La sauce a bien été créée'}))
-            .catch((error) => res.status(400).json({ error }))
-        ;
+            .then(() => res.status(201).json({ message: 'La sauce a bien été créée' }))
+            .catch((error) => res.status(400).json({ error }));
 
-    } catch(error) {
-        return res.status(403).json({ error })
+    } catch (error) {
+        return res.status(403).json({ error });
     }
-
-
 };
 
-// modify a sauce
+// Modifie une sauce existante
 export function modifySauce(req, res) {
-
-    // Check the file extension
+    // Vérifie que le fichier envoyé est au format image
     if (req.file) {
         const fileExtension = path.extname(req.file.filename);
         if (!['.jpg', '.jpeg', '.png'].includes(fileExtension.toLowerCase())) {
             throw 'Le fichier doit être au format jpg, jpeg ou png';
         }
     }
-    
+
     try {
-
+        // Récupère la sauce existante
         return sauce.findOne({ _id: req.params.id })
-        .then((displayedSauce) => {
 
-            if (!req.params.id) {
-                return res.status(404).json({error: 'sauce non trouvée'});
-            } else if (displayedSauce.userId !== req.auth.userId) {
-                return res.status(401).json({error: 'requête non autorisée'});
-            } 
-    
-            // is there a file in the request ?
-            const sauceObject = req.file ? 
-            { 
-                // if yes : modify the sauce according to the request + the 'imageUrl' according to the filename
-                ...JSON.parse(req.body.sauce),
-                imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-            } : { ...req.body }; // if not: modify the sauce according to the request
-        
-            // update the sauce in the database
-            return sauce.updateOne({_id: req.params.id}, {...sauceObject, id: req.params.id})
-                .then(() => res.status(200).json({message: 'sauce modifiée'}))
-                .catch(error => res.status(400).json({error}))
-            ;
-        })
+            .then((displayedSauce) => {
 
-    
-    } catch(err) {
+                // Vérifie si la sauce existe
+                if (!req.params.id) {
+                    return res.status(404).json({ error: 'sauce non trouvée' });
+                    // Vérifie si l'utilisateur a l'autorisation de modifier la sauce
+                } else if (displayedSauce.userId !== req.auth.userId) {
+                    return res.status(401).json({ error: 'requête non autorisée' });
+                }
+
+                // Crée un objet sauce avec les données reçues
+                const sauceObject = req.file ?
+                    {
+                        ...JSON.parse(req.body.sauce),
+                        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+                    } : { ...req.body };
+
+                // Met à jour la sauce avec les nouvelles données
+                return sauce.updateOne({ _id: req.params.id }, { ...sauceObject, id: req.params.id })
+                    .then(() => res.status(200).json({ message: 'sauce modifiée' }))
+                    .catch(error => res.status(400).json({ error }));
+            })
+
+    } catch (err) {
         return res.status(403).json({ err })
     }
-    // })
-
 
 };
 
-// delete a sauce
+// Supprime une sauce existante
 export function deleteSauce(req, res) {
 
-    // find in the database the sauce that is displayed
+    // Récupère la sauce existante
     return sauce.findOne({ _id: req.params.id })
-        // then
         .then(sauce => {
-        
-            // check if this sauce exists and if the user has the right to delete it
+
+            // Vérifie si la sauce existe
             if (!sauce) {
-                return res.status(404).json({error: 'sauce non trouvée'});
+                return res.status(404).json({ error: 'sauce non trouvée' });
+                // Vérifie si l'utilisateur a l'autorisation de supprimer la sauce
             } else if (sauce.userId !== req.auth.userId) {
-                return res.status(401).json({error: 'requête non autorisée'});
+                return res.status(401).json({ error: 'requête non autorisée' });
             }
 
-            // take the image name
+            // Supprime l'image correspondante
             const filename = sauce.imageUrl.split('/images/')[1];
-            // and unlink it from the images directory
             fs.unlink(`images/${filename}`, () => {
-                // then, delete the sauce
-                return sauce.deleteOne({_id: req.params.id})
-                    .then(() => res.status(200).json({message: 'sauce supprimée'}))
-                    .catch(error => res.status(404).json({error}))
+                // Supprime la sauce de la base de données
+                return sauce.deleteOne({ _id: req.params.id })
+                    .then(() => res.status(200).json({ message: 'sauce supprimée' }))
+                    .catch(error => res.status(404).json({ error }));
             });
 
         })
         .catch(error => res.status(404).json({ error }));
+
 };
 
-// like a sauce
+// Gère les votes sur une sauce
 export function likeSauce(req, res) {
 
-    // find in the database the sauce that is displayed
-    sauce.findOne({_id: req.params.id})
-        // then 
+    // Récupère la sauce correspondante à l'id fourni dans la requête
+    sauce.findOne({ _id: req.params.id })
         .then(sauce => {
+            // Récupère l'id de l'utilisateur et le choix de vote (like, dislike ou annulation)
             let curentUserId = req.body.userId;
             let userLikeState = req.body.like;
+            // Récupère les listes des utilisateurs ayant liké et disliké la sauce
             let likedUsersList = sauce.usersLiked;
             let dislikedUsersList = sauce.usersDisliked;
 
-            // if the user dislike
+            // Cas où l'utilisateur dislike la sauce
             if (userLikeState == -1) {
-                // & he liked before
+                // Cas où l'utilisateur avait déjà liké la sauce
                 if (likedUsersList.indexOf(`${curentUserId}`) !== -1) {
+                    // Réduit le compteur de likes et retire l'utilisateur de la liste des utilisateurs ayant liké
                     sauce.likes -= 1;
                     likedUsersList.pop(curentUserId);
+                    // Augmente le compteur de dislikes et ajoute l'utilisateur à la liste des utilisateurs ayant disliké
                     sauce.dislikes += 1;
                     dislikedUsersList.push(curentUsertId);
                 }
-                // & he hasn't yet disliked
+                // Cas où l'utilisateur n'avait pas encore voté
                 else if (dislikedUsersList.indexOf(`${curentUserId}`) == -1) {
+                    // Augmente le compteur de dislikes et ajoute l'utilisateur à la liste des utilisateurs ayant disliké
                     sauce.dislikes += 1;
                     dislikedUsersList.push(curentUserId);
                 }
             }
 
-            // if the user remove his like / dislike
+            // Cas où l'utilisateur annule son vote
             else if (userLikeState == 0) {
-
-                // if he removes his dislike
+                // Cas où l'utilisateur avait disliké la sauce
                 if (dislikedUsersList.indexOf(`${curentUserId}`) !== -1) {
+                    // Réduit le compteur de dislikes et retire l'utilisateur de la liste des utilisateurs ayant disliké
                     sauce.dislikes -= 1;
                     dislikedUsersList.pop(curentUserId);
                 }
-                // if he remove his like
+                // Cas où l'utilisateur avait liké la sauce
                 else if (likedUsersList.indexOf(`${curentUserId}`) !== -1) {
+                    // Réduit le compteur de likes et retire l'utilisateur de la liste des utilisateurs ayant liké
                     sauce.likes -= 1;
                     likedUsersList.pop(curentUserId);
                 }
             }
 
-            // if the user like
+            // Cas où l'utilisateur like la sauce
             else if (userLikeState == 1) {
-                // & he hasn't yet liked
+                // Cas où l'utilisateur n'avait pas encore liké la sauce
                 if (likedUsersList.indexOf(`${curentUserId}`) == -1) {
+                    // Augmente le compteur de likes et ajoute l'utilisateur à la liste des utilisateurs ayant liké
                     sauce.likes += 1;
                     likedUsersList.push(curentUserId);
                 }
-                // & he disliked before
-                else if(dislikedUsersList.indexOf(`${curentUserId}`) !== -1) {
+                // Cas où l'utilisateur avait disliké la sauce
+                else if (dislikedUsersList.indexOf(`${curentUserId}`) !== -1) {
+                    // Réduit le compteur de dislikes, retire l'utilisateur de la liste des utilisateurs ayant disliké,
+                    // augmente le compteur de likes et ajoute l'utilisateur à la liste des utilisateurs ayant liké
                     sauce.dislikes -= 1;
                     dislikedUsersList.pop(curentUserId);
                     sauce.likes += 1;
@@ -214,12 +201,16 @@ export function likeSauce(req, res) {
                 }
             }
 
-            // then, save the sauce in the database
+            // Enregistre la sauce modifiée
             return sauce.save()
+                // Envoie une réponse JSON pour confirmer que le vote a été enregistré
                 .then(res.status(200).json({ message: 'Vote enregistré' }))
-                .catch(error => {res.status(404).json({ error })})
+                // Envoie une réponse JSON avec une erreur 404 si une erreur se produit lors de l'enregistrement de la sauce
+                .catch(error => { res.status(404).json({ error }) })
         })
+        // Si une erreur se produit lors de la recherche de la sauce
         .catch(error => {
+            // Envoie une réponse JSON avec une erreur 404
             res.status(404).json({ error })
         })
 };
