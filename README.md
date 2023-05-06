@@ -36,5 +36,15 @@
 <li>Exécutez la commande <code>npm start</code> depuis <strong>front</strong> pour lancer l'application</li>
 <li>Ouvrez votre navigateur et accédez à l'adresse <code>http://localhost:4200</code> pour utiliser l'application</li>
   </ol>
+  
+  <h2>Aperçu de l'application</h2>
+  <strong>Page login / sign up</strong>
+  <img width="961" alt="login" src="https://user-images.githubusercontent.com/97740379/236632949-43b911ee-f0b9-437a-b466-6a2b29f08fa6.png">
+  <strong>Page regroupant toutes les sauces</strong>
+  <img width="949" alt="sauces" src="https://user-images.githubusercontent.com/97740379/236632964-c4574e2f-7cf2-4fb3-8a02-976c63bee876.png">
+  <strong>Page produit d'une sauce</strong>
+  <img width="961" alt="sauce" src="https://user-images.githubusercontent.com/97740379/236632972-5c28f585-f3c7-4a28-a746-a4dd9e55ce92.png">
+  <strong>Page "ajouter une sauce" / "modifier une sauce"</strong>
+  <img width="949" alt="modify" src="https://user-images.githubusercontent.com/97740379/236632977-c821e3c1-6a7a-4c60-bb97-02a0edfd31d0.png">
 </body>
 </html>
